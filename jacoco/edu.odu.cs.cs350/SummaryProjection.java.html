@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SummaryProjection.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">project</a> &gt; <a href="index.source.html" class="el_package">edu.odu.cs.cs350</a> &gt; <span class="el_source">SummaryProjection.java</span></div><h1>SummaryProjection.java</h1><pre class="source lang-java linenums">package edu.odu.cs.cs350;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
+
+/**
+ * Generates a summary projection report for courses.
+ *
+ * The report is printed to standard output. It consists of two header lines
+ * followed by a line for each course offered during the current semester.
+ *
+ * Header line 1: percentage of the enrollment period that has elapsed.
+ * Header line 2: column headings.
+ *
+ * Each course line includes:
+ *   * a marker (`*` if projected enrollment &gt; total cap, otherwise a space)
+ *   * course name
+ *   * current enrollment (summed over all offerings)
+ *   * projected enrollment for the add deadline
+ *   * total cap (summed over all offerings)
+ *
+ * Course snapshots are stored as dated CSV files within a semester directory.
+ */
+public class SummaryProjection {
+	String percentageElapsed;
+<span class="fc" id="L36">	String HEADER = &quot;|Course    | Enrollment	| Projected	| OVERALL CAP|&quot;;</span>
+	Path csvFilePath;
+    
+    ArrayList &lt;String&gt; contents;
+<span class="fc" id="L40">	SummaryProjection(Path csvFilePath){</span>
+<span class="fc" id="L41">		contents = new ArrayList&lt;&gt;(); </span>
+<span class="fc" id="L42">        this.csvFilePath = csvFilePath;</span>
+<span class="fc" id="L43">	}</span>
+
+	public void calculatePercentageElapsed(){
+		//TODO: implement this method
+<span class="fc" id="L47">		percentageElapsed = &quot;0%&quot;; //placeholder</span>
+<span class="fc" id="L48">	}</span>
+	
+	public String getPercentageElapsed() {
+<span class="fc" id="L51">		return percentageElapsed;</span>
+	}
+        /**
+     * Get the report marker showing whether a course is projected to exceed its cap.
+     * @param course the course to check
+     * @return &quot;*&quot; if projected enrollment exceeds the total cap, otherwise &quot; &quot;
+     **/
+    public static String capIndicator(Course course) {
+<span class="fc bfc" id="L59" title="All 2 branches covered.">        return course.exceedsCap() ? &quot;*&quot; : &quot; &quot;;</span>
+    }
+
+	@Override
+	public String toString() {
+<span class="fc" id="L64">        StringBuilder sb = new StringBuilder();</span>
+<span class="fc" id="L65">        calculatePercentageElapsed();</span>
+<span class="fc" id="L66">        sb.append(percentageElapsed).append(&quot;\n&quot;).append(HEADER).append(&quot;\n&quot;);</span>
+<span class="fc" id="L67">  List&lt;Course&gt; courses = new ArrayList&lt;&gt;();</span>
+        try {
+<span class="fc" id="L69">            courses = loadCourses(csvFilePath);</span>
+<span class="fc" id="L70">        } catch (IOException e) {</span>
+<span class="fc" id="L71">            e.printStackTrace();</span>
+<span class="fc" id="L72">        }</span>
+
+<span class="fc bfc" id="L74" title="All 2 branches covered.">        for (Course course : courses) {</span>
+<span class="fc" id="L75">            String formattedName = String.format(&quot;%-8.8s&quot;, course.getName());</span>
+<span class="fc" id="L76">            sb.append(capIndicator(course))</span>
+<span class="fc" id="L77">              .append(&quot;| &quot;).append(formattedName).append(&quot; |&quot;).append(&quot;\n&quot;);</span>
+<span class="fc" id="L78">        }</span>
+
+
+<span class="fc" id="L81">		return sb.toString(); //add more later</span>
+	}
+
+	/**
+     * Imports and aggregates a dated course snapshot.
+     *
+     * The CSV must contain SUBJ, CRSE, XLST CAP, and
+     * ENR columns. Each row is an offering; enrollment and capacity are
+     * summed by subject and course number. A single snapshot has no projection
+     * information, so projected enrollment is initialized to current enrollment.
+     *
+     * @param csvFile the dated course snapshot to import.
+     * @return courses sorted by their subject and course number.
+     * @throws IOException if the file cannot be read or required columns are absent.
+     */
+    public static List&lt;Course&gt; loadCourses(Path csvFile) throws IOException {
+        Map&lt;String, Integer&gt; headers;
+<span class="fc" id="L98">        Map&lt;String, int[]&gt; totals = new TreeMap&lt;&gt;();</span>
+
+<span class="fc" id="L100">        try (BufferedReader reader = Files.newBufferedReader(csvFile)) {</span>
+<span class="fc" id="L101">            String headerLine = reader.readLine();</span>
+<span class="pc bpc" id="L102" title="1 of 2 branches missed.">            if (headerLine == null) {</span>
+<span class="nc" id="L103">                throw new IOException(&quot;Course snapshot is empty: &quot; + csvFile);</span>
+            }
+<span class="fc" id="L105">            headers = indexHeaders(parseCsvLine(headerLine));</span>
+<span class="fc" id="L106">            int subjIndex = requiredColumn(headers, &quot;SUBJ&quot;);</span>
+<span class="fc" id="L107">            int crseIndex = requiredColumn(headers, &quot;CRSE&quot;);</span>
+<span class="fc" id="L108">            int capacityIndex = requiredColumn(headers, &quot;XLST CAP&quot;);</span>
+<span class="fc" id="L109">            int enrollmentIndex = requiredColumn(headers, &quot;ENR&quot;);</span>
+<span class="fc" id="L110">            int lineNumber = 1;</span>
+            String line;
+<span class="fc bfc" id="L112" title="All 2 branches covered.">            while ((line = reader.readLine()) != null) {</span>
+<span class="fc" id="L113">                lineNumber++;</span>
+<span class="fc bfc" id="L114" title="All 2 branches covered.">                if (line.isBlank()) {</span>
+<span class="fc" id="L115">                    continue;</span>
+                }
+
+<span class="fc" id="L118">                String[] fields = parseCsvLine(line);</span>
+<span class="fc" id="L119">                int lastRequiredIndex = Math.max(</span>
+<span class="fc" id="L120">                    Math.max(subjIndex, crseIndex),</span>
+<span class="fc" id="L121">                    Math.max(capacityIndex, enrollmentIndex));</span>
+<span class="fc bfc" id="L122" title="All 2 branches covered.">                if (fields.length &lt;= lastRequiredIndex) {</span>
+<span class="fc" id="L123">                    continue;</span>
+                }
+
+<span class="fc" id="L126">                String subject = fields[subjIndex].trim();</span>
+<span class="fc" id="L127">                String courseNumber = fields[crseIndex].trim();</span>
+<span class="fc bfc" id="L128" title="All 4 branches covered.">                if (subject.isEmpty() || courseNumber.isEmpty()) {</span>
+<span class="fc" id="L129">                    continue;</span>
+                }
+
+<span class="fc" id="L132">                int capacity = parseInteger(fields[capacityIndex], csvFile, lineNumber);</span>
+<span class="fc" id="L133">                int enrollment = parseInteger(fields[enrollmentIndex], csvFile, lineNumber);</span>
+<span class="fc" id="L134">                String name = subject + courseNumber;</span>
+<span class="fc" id="L135">                int[] courseTotals = totals.computeIfAbsent(name, ignored -&gt; new int[2]);</span>
+<span class="fc" id="L136">                courseTotals[0] = Math.addExact(courseTotals[0], enrollment);</span>
+<span class="fc" id="L137">                courseTotals[1] = Math.addExact(courseTotals[1], capacity);</span>
+<span class="fc" id="L138">            }</span>
+        }
+
+<span class="fc" id="L141">        List&lt;Course&gt; courses = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L142" title="All 2 branches covered.">        for (Map.Entry&lt;String, int[]&gt; entry : totals.entrySet()) {</span>
+<span class="fc" id="L143">            int enrollment = entry.getValue()[0];</span>
+<span class="fc" id="L144">            courses.add(new Course(entry.getKey(), enrollment, enrollment, entry.getValue()[1]));</span>
+<span class="fc" id="L145">        }</span>
+<span class="fc" id="L146">        return courses;</span>
+    }
+
+    /**
+     * Extracts a sorted list of unique course identifiers from a CSV file.
+     *
+     * The CSV must contain a header row with columns named SUBJ (subject)
+     * and CRSE (course number). Each subsequent row represents a course
+     * offering. The method concatenates SUBJ and CRSE (e.g., CS115)
+     * for each row, deduplicates the results, and returns them in ascending order.
+     *
+     * @param csvFile the path to the CSV file containing course data.
+     * @return a sorted list of unique course names.
+     * @throws IOException if an I/O error occurs while reading the file.
+     */
+    public static List&lt;String&gt; extractUniqueCourseNames(Path csvFile) throws IOException {
+<span class="fc" id="L162">        Set&lt;String&gt; uniqueNames = new TreeSet&lt;&gt;();</span>
+<span class="fc" id="L163">        try (BufferedReader br = Files.newBufferedReader(csvFile)) {</span>
+<span class="fc" id="L164">            String headerLine = br.readLine();</span>
+<span class="fc bfc" id="L165" title="All 2 branches covered.">            if (headerLine == null) {</span>
+<span class="fc" id="L166">                return new ArrayList&lt;&gt;(uniqueNames);</span>
+            }
+<span class="fc" id="L168">            Map&lt;String, Integer&gt; headers = indexHeaders(parseCsvLine(headerLine));</span>
+<span class="fc" id="L169">            Integer subjIdx = headers.get(&quot;SUBJ&quot;);</span>
+<span class="fc" id="L170">            Integer crseIdx = headers.get(&quot;CRSE&quot;);</span>
+<span class="pc bpc" id="L171" title="1 of 4 branches missed.">            if (subjIdx == null || crseIdx == null) {</span>
+<span class="fc" id="L172">                return new ArrayList&lt;&gt;(uniqueNames);</span>
+            }
+            String line;
+<span class="fc bfc" id="L175" title="All 2 branches covered.">            while ((line = br.readLine()) != null) {</span>
+<span class="fc bfc" id="L176" title="All 2 branches covered.">                if (line.isBlank()) continue;</span>
+<span class="fc" id="L177">                String[] parts = parseCsvLine(line);</span>
+<span class="pc bpc" id="L178" title="1 of 2 branches missed.">                if (parts.length &lt;= Math.max(subjIdx, crseIdx)) continue;</span>
+<span class="fc" id="L179">                String subj = parts[subjIdx].trim();</span>
+<span class="fc" id="L180">                String crse = parts[crseIdx].trim();</span>
+<span class="fc bfc" id="L181" title="All 4 branches covered.">                if (!subj.isEmpty() &amp;&amp; !crse.isEmpty()) {</span>
+<span class="fc" id="L182">                    uniqueNames.add(subj + crse);</span>
+                }
+<span class="fc" id="L184">            }</span>
+<span class="pc bpc" id="L185" title="2 of 4 branches missed.">        }</span>
+<span class="fc" id="L186">        return new ArrayList&lt;&gt;(uniqueNames);</span>
+    }
+
+    private static Map&lt;String, Integer&gt; indexHeaders(String[] headers) {
+<span class="fc" id="L190">        Map&lt;String, Integer&gt; indexes = new HashMap&lt;&gt;();</span>
+<span class="fc bfc" id="L191" title="All 2 branches covered.">        for (int i = 0; i &lt; headers.length; i++) {</span>
+<span class="fc" id="L192">            String header = headers[i].trim();</span>
+<span class="fc bfc" id="L193" title="All 2 branches covered.">            if (i == 0) {</span>
+<span class="fc" id="L194">                header = header.replaceFirst(&quot;^\uFEFF&quot;, &quot;&quot;);</span>
+            }
+<span class="fc" id="L196">            indexes.put(header.toUpperCase(Locale.ROOT), i);</span>
+        }
+<span class="fc" id="L198">        return indexes;</span>
+    }
+
+    private static int requiredColumn(Map&lt;String, Integer&gt; headers, String name) throws IOException {
+<span class="fc" id="L202">        Integer index = headers.get(name);</span>
+<span class="fc bfc" id="L203" title="All 2 branches covered.">        if (index == null) {</span>
+<span class="fc" id="L204">            throw new IOException(&quot;Course snapshot is missing required column: &quot; + name);</span>
+        }
+<span class="fc" id="L206">        return index;</span>
+    }
+
+    private static int parseInteger(String value, Path csvFile, int lineNumber) throws IOException {
+        try {
+<span class="fc" id="L211">            return Integer.parseInt(value.trim());</span>
+<span class="fc" id="L212">        } catch (NumberFormatException exception) {</span>
+<span class="fc" id="L213">            throw new IOException(&quot;Invalid integer in &quot; + csvFile + &quot; at line &quot; + lineNumber, exception);</span>
+        }
+    }
+
+    private static String[] parseCsvLine(String line) throws IOException {
+<span class="fc" id="L218">        List&lt;String&gt; fields = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L219">        StringBuilder field = new StringBuilder();</span>
+<span class="fc" id="L220">        boolean inQuotes = false;</span>
+<span class="fc bfc" id="L221" title="All 2 branches covered.">        for (int i = 0; i &lt; line.length(); i++) {</span>
+<span class="fc" id="L222">            char character = line.charAt(i);</span>
+<span class="fc bfc" id="L223" title="All 2 branches covered.">            if (character == '&quot;') {</span>
+<span class="pc bpc" id="L224" title="1 of 6 branches missed.">                if (inQuotes &amp;&amp; i + 1 &lt; line.length() &amp;&amp; line.charAt(i + 1) == '&quot;') {</span>
+<span class="nc" id="L225">                    field.append('&quot;');</span>
+<span class="nc" id="L226">                    i++;</span>
+                } else {
+<span class="fc bfc" id="L228" title="All 2 branches covered.">                    inQuotes = !inQuotes;</span>
+                }
+<span class="fc bfc" id="L230" title="All 4 branches covered.">            } else if (character == ',' &amp;&amp; !inQuotes) {</span>
+<span class="fc" id="L231">                fields.add(field.toString());</span>
+<span class="fc" id="L232">                field.setLength(0);</span>
+            } else {
+<span class="fc" id="L234">                field.append(character);</span>
+            }
+        }
+<span class="fc bfc" id="L237" title="All 2 branches covered.">        if (inQuotes) {</span>
+<span class="fc" id="L238">            throw new IOException(&quot;Unterminated quoted field in CSV line&quot;);</span>
+        }
+<span class="fc" id="L240">        fields.add(field.toString());</span>
+<span class="fc" id="L241">        return fields.toArray(new String[0]);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DetailedProjectionReport.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">project</a> &gt; <a href="index.source.html" class="el_package">edu.odu.cs.cs350</a> &gt; <span class="el_source">DetailedProjectionReport.java</span></div><h1>DetailedProjectionReport.java</h1><pre class="source lang-java linenums">package edu.odu.cs.cs350;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.util.WorkbookUtil;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+
+/** Writes the course worksheets of a detailed enrollment report. */
+public final class DetailedProjectionReport {
+    private DetailedProjectionReport() {
+    }
+
+    /**
+     * Imports one snapshot through the existing course loader and writes its worksheets.
+     *
+     * @param snapshot the input CSV already selected by the caller
+     * @param output destination Excel workbook
+     * @throws IOException if the snapshot cannot be read or the workbook cannot be saved
+     * @throws IllegalArgumentException if the output would replace the input or courses are invalid
+     */
+    public static void writeSnapshot(Path snapshot, Path output) throws IOException {
+<span class="fc bfc" id="L28" title="All 2 branches covered.">        if (snapshot.toAbsolutePath().normalize().equals(output.toAbsolutePath().normalize())</span>
+<span class="pc bpc" id="L29" title="3 of 4 branches missed.">                || (Files.exists(output) &amp;&amp; Files.isSameFile(snapshot, output))) {</span>
+<span class="fc" id="L30">            throw new IllegalArgumentException(&quot;The workbook destination must differ from the snapshot&quot;);</span>
+        }
+<span class="fc" id="L32">        write(output, SummaryProjection.loadCourses(snapshot));</span>
+<span class="fc" id="L33">    }</span>
+
+    /**
+     * Writes exactly one alphabetically ordered worksheet for each course.
+     * Sheets contain current enrollment and capacity supplied by the course model.
+     * Projection curves and graphs belong to separate user stories.
+     *
+     * @param output destination .xlsx file; its parent directory must exist
+     * @param courses distinct courses to include in the workbook
+     * @throws IOException if the workbook cannot be saved
+     * @throws IllegalArgumentException if the course list is empty or sheet names are invalid
+     */
+    public static void write(Path output, List&lt;Course&gt; courses) throws IOException {
+<span class="fc" id="L46">        var sortedCourses = validatedCourses(courses);</span>
+<span class="fc" id="L47">        try (var workbook = new XSSFWorkbook()) {</span>
+<span class="fc" id="L48">            var heading = headingStyle(workbook);</span>
+<span class="fc bfc" id="L49" title="All 2 branches covered.">            for (Course course : sortedCourses.values()) {</span>
+<span class="fc" id="L50">                addCourseSheet(workbook, course, heading);</span>
+<span class="fc" id="L51">            }</span>
+<span class="fc" id="L52">            try (var destination = Files.newOutputStream(output)) {</span>
+<span class="fc" id="L53">                workbook.write(destination);</span>
+            }
+        }
+<span class="fc" id="L56">    }</span>
+
+    private static TreeMap&lt;String, Course&gt; validatedCourses(List&lt;Course&gt; courses) {
+<span class="fc bfc" id="L59" title="All 2 branches covered.">        if (courses.isEmpty()) {</span>
+<span class="fc" id="L60">            throw new IllegalArgumentException(&quot;No courses are available for the detailed report&quot;);</span>
+        }
+<span class="fc" id="L62">        var sortedCourses = new TreeMap&lt;String, Course&gt;();</span>
+<span class="fc" id="L63">        Set&lt;String&gt; sheetNames = new TreeSet&lt;&gt;(String.CASE_INSENSITIVE_ORDER);</span>
+<span class="fc bfc" id="L64" title="All 2 branches covered.">        for (Course course : courses) {</span>
+<span class="fc" id="L65">            String name = course.getName();</span>
+<span class="fc" id="L66">            WorkbookUtil.validateSheetName(name);</span>
+<span class="fc bfc" id="L67" title="All 2 branches covered.">            if (!sheetNames.add(name)) {</span>
+<span class="fc" id="L68">                throw new IllegalArgumentException(&quot;Duplicate course worksheet: &quot; + name);</span>
+            }
+<span class="fc" id="L70">            sortedCourses.put(name, course);</span>
+<span class="fc" id="L71">        }</span>
+<span class="fc" id="L72">        return sortedCourses;</span>
+    }
+
+    private static CellStyle headingStyle(XSSFWorkbook workbook) {
+<span class="fc" id="L76">        var font = workbook.createFont();</span>
+<span class="fc" id="L77">        font.setBold(true);</span>
+<span class="fc" id="L78">        var style = workbook.createCellStyle();</span>
+<span class="fc" id="L79">        style.setFont(font);</span>
+<span class="fc" id="L80">        return style;</span>
+    }
+
+    private static void addCourseSheet(XSSFWorkbook workbook, Course course, CellStyle heading) {
+<span class="fc" id="L84">        var sheet = workbook.createSheet(course.getName());</span>
+<span class="fc" id="L85">        var header = sheet.createRow(0);</span>
+<span class="fc" id="L86">        String[] columns = {&quot;Course&quot;, &quot;Current enrollment&quot;, &quot;Capacity&quot;};</span>
+<span class="fc bfc" id="L87" title="All 2 branches covered.">        for (int column = 0; column &lt; columns.length; column++) {</span>
+<span class="fc" id="L88">            var cell = header.createCell(column);</span>
+<span class="fc" id="L89">            cell.setCellValue(columns[column]);</span>
+<span class="fc" id="L90">            cell.setCellStyle(heading);</span>
+<span class="fc" id="L91">            sheet.setColumnWidth(column, 22 * 256);</span>
+        }
+<span class="fc" id="L93">        var values = sheet.createRow(1);</span>
+<span class="fc" id="L94">        values.createCell(0).setCellValue(course.getName());</span>
+<span class="fc" id="L95">        values.createCell(1).setCellValue(course.getCurrentEnrollment());</span>
+<span class="fc" id="L96">        values.createCell(2).setCellValue(course.getCapacity());</span>
+<span class="fc" id="L97">        sheet.createFreezePane(0, 1);</span>
+<span class="fc" id="L98">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>
